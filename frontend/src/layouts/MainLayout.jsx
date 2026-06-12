@@ -5,7 +5,7 @@ import RightPanel from '../components/RightPanel';
 
 const MainLayout = () => {
   const location = useLocation();
-  const hideRightPanelPaths = ['/notes', '/settings', '/calendar'];
+  const hideRightPanelPaths = ['/notes', '/settings', '/calendar', '/tasks'];
   const shouldHideRightPanel = hideRightPanelPaths.includes(location.pathname);
 
   return (

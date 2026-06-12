@@ -55,3 +55,16 @@ body {
   color: #a78bfa;
   text-shadow: 0 0 10px rgba(167, 139, 250, 0.5);
 }
+
+@keyframes blink {
+  0%, 96%, 98%, 100% {
+    transform: scaleY(1);
+  }
+  97% {
+    transform: scaleY(0.1);
+  }
+}
+
+.animate-blink {
+  animation: blink 4s ease-in-out infinite;
+}

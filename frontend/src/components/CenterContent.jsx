@@ -295,8 +295,12 @@ const CenterContent = () => {
           </Canvas>
           {/* Facial features */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[60%] flex gap-8">
-            <div className={`w-3 h-8 bg-cyan-300 rounded-full shadow-[0_0_15px_#67e8f9] transition-transform duration-300 ${inputText || isChatActive ? 'scale-y-75' : ''}`}></div>
-            <div className={`w-3 h-8 bg-cyan-300 rounded-full shadow-[0_0_15px_#67e8f9] transition-transform duration-300 ${inputText || isChatActive ? 'scale-y-75' : ''}`}></div>
+            <div className="animate-blink flex items-center justify-center">
+              <div className={`w-3 h-8 bg-cyan-300 rounded-full shadow-[0_0_15px_#67e8f9] transition-transform duration-300 ${inputText || isChatActive ? 'scale-y-75' : ''}`}></div>
+            </div>
+            <div className="animate-blink flex items-center justify-center">
+              <div className={`w-3 h-8 bg-cyan-300 rounded-full shadow-[0_0_15px_#67e8f9] transition-transform duration-300 ${inputText || isChatActive ? 'scale-y-75' : ''}`}></div>
+            </div>
           </div>
           <div className={`absolute top-[65%] left-1/2 -translate-x-1/2 h-1.5 bg-cyan-300 rounded-full shadow-[0_0_15px_#67e8f9] transition-all duration-300 ${inputText || isChatActive ? 'w-16 rotate-0' : 'w-12 rotate-[-5deg]'}`}></div>
         </div>
