@@ -50,3 +50,16 @@ class Task(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     user = relationship("User")
+
+class Event(Base):
+    __tablename__ = "events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    title = Column(String, index=True)
+    date = Column(String) # ISO date string YYYY-MM-DD
+    event_type = Column(String) # "Meeting", "Occasion", "Special Day"
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    user = relationship("User")

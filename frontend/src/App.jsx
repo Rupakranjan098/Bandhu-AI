@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from './layouts/MainLayout';
+import DashboardPage from './pages/DashboardPage';
 import CenterContent from './components/CenterContent';
 import ConversationsPage from './pages/ConversationsPage';
 import TasksPage from './pages/TasksPage';

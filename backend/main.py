@@ -12,6 +12,7 @@ import models
 import auth
 from pydantic import BaseModel
 from typing import List, Optional
+from g4f.client import AsyncClient
 
 load_dotenv()
 
@@ -39,13 +40,41 @@ class MessageRequest(BaseModel):
     conversation_id: Optional[int] = None
     content: str
 
-# Mock generator for LLM streaming
-async def mock_llm_stream(prompt: str):
-    response = f"This is a mocked response to your message: '{prompt}'.\n\nI am streaming this token by token. *Markdown* is also **supported**! Here is a list:\n- Item 1\n- Item 2"
-    tokens = response.split(' ')
-    for i, token in enumerate(tokens):
-        await asyncio.sleep(0.1) # Simulate delay
-        yield f"{token} " if i < len(tokens)-1 else token
+# Free LLM API using g4f
+async def real_llm_stream(prompt: str):
+    clean_prompt = prompt.strip().lower()
+    if clean_prompt in ["hi", "hii", "hello"]:
+        yield "hello how can i help you"
+        return
+
+    client = AsyncClient()
+    try:
+        response = await client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            stream=True
+        )
+        if hasattr(response, '__aiter__'): # It's an async generator or stream
+            async for chunk in response:
+                if chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+        else: # It's just a normal object but g4f sometimes messes up the return type
+            pass
+    except TypeError as e:
+        if "object can't be awaited" in str(e):
+            # If it cannot be awaited, it means it returned the async generator directly
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}],
+                stream=True
+            )
+            async for chunk in response:
+                if chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+        else:
+            yield f"\n\n[Free API Error]: {str(e)}"
+    except Exception as e:
+        yield f"\n\n[Free API Error]: {str(e)}"
 
 @app.post("/chat")
 async def chat(req: Request, message_req: MessageRequest, db: Session = Depends(get_db)):
@@ -72,8 +101,8 @@ async def chat(req: Request, message_req: MessageRequest, db: Session = Depends(
         }
         
         full_response = ""
-        # Mock streaming for now. If you want real OpenAI/Gemini, you'd replace this loop.
-        async for chunk in mock_llm_stream(message_req.content):
+        # Real streaming via Free LLM API
+        async for chunk in real_llm_stream(message_req.content):
             full_response += chunk
             yield {
                 "event": "message",
@@ -204,3 +233,50 @@ def delete_task(task_id: int, db: Session = Depends(get_db), current_user: model
     db.delete(db_task)
     db.commit()
     return {"status": "success"}
+
+# --- Events API ---
+
+class EventCreate(BaseModel):
+    title: str
+    date: str
+    event_type: str
+    description: Optional[str] = None
+
+class EventResponse(BaseModel):
+    id: int
+    title: str
+    date: str
+    event_type: str
+    description: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+@app.get("/events", response_model=List[EventResponse])
+def get_events(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    return db.query(models.Event).filter(models.Event.user_id == current_user.id).all()
+
+@app.post("/events", response_model=EventResponse)
+def create_event(event: EventCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    db_event = models.Event(
+        title=event.title, 
+        user_id=current_user.id,
+        date=event.date,
+        event_type=event.event_type,
+        description=event.description
+    )
+    db.add(db_event)
+    db.commit()
+    db.refresh(db_event)
+    return db_event
+
+@app.delete("/events/{event_id}")
+def delete_event(event_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    from fastapi import HTTPException
+    db_event = db.query(models.Event).filter(models.Event.id == event_id, models.Event.user_id == current_user.id).first()
+    if not db_event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    db.delete(db_event)
+    db.commit()
+    return {"status": "success"}
+

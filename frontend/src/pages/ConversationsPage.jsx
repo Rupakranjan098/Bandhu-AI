@@ -35,6 +35,8 @@ const formatTime = (dateString) => {
   }
   
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
 const ConversationsPage = () => {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
