@@ -30,9 +30,12 @@ const CreateTaskPage = () => {
     
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
       await axios.post('http://localhost:8001/tasks', {
         ...formData,
         is_important: formData.is_important ? 1 : 0
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
       navigate('/tasks'); // redirect back to tasks list
     } catch (error) {

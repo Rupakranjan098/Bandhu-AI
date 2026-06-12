@@ -20,12 +20,18 @@ const Toggle = ({ active, onChange }) => (
 );
 
 // Reusable Dropdown Component
-const Dropdown = ({ value, options }) => (
-  <div className="relative">
-    <div className="flex items-center gap-2 bg-transparent border border-glass-border px-4 py-2 rounded-lg cursor-pointer hover:bg-white/5 transition-colors">
-      <span className="text-sm text-gray-200">{value}</span>
-      <ChevronDown size={14} className="text-gray-400" />
-    </div>
+const Dropdown = ({ value, options, onChange }) => (
+  <div className="relative group/dropdown">
+    <select 
+      value={value} 
+      onChange={(e) => onChange(e.target.value)}
+      className="appearance-none bg-transparent border border-glass-border px-4 py-2 pr-10 rounded-lg cursor-pointer hover:bg-white/5 transition-colors text-sm text-gray-200 outline-none focus:border-brand-purple"
+    >
+      {options.map(opt => (
+        <option key={opt} value={opt} className="bg-panel-dark text-white">{opt}</option>
+      ))}
+    </select>
+    <ChevronDown size={14} className="text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none group-hover/dropdown:text-white transition-colors" />
   </div>
 );
 
@@ -55,19 +61,39 @@ const SettingsPage = () => {
   const [tasks, setTasks] = useState([]);
   const [events, setEvents] = useState([]);
   
-  // Settings State
-  const [toggles, setToggles] = useState({
-    autoSuggest: true,
-    soundEffects: false,
-    contextAwareness: true,
-    proactiveAssistance: true,
-    dailySummary: true,
+  // Settings State (mirrors backend model)
+  const [prefs, setPrefs] = useState({
+    theme: 'Dark',
+    language: 'English',
+    ai_response_style: 'Balanced',
+    auto_suggest: true,
+    sound_effects: false,
+    context_awareness: true,
+    proactive_assistance: true,
+    daily_summary: true,
     personalization: true,
-    dataUsage: false
+    data_usage: false
   });
+  // Update backend when preference changes
+  const updatePreference = async (key, value) => {
+    const newPrefs = { ...prefs, [key]: value };
+    setPrefs(newPrefs); // Optimistic UI update
+
+    try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      await axios.put('http://localhost:8001/preferences', newPrefs, config);
+    } catch (err) {
+      console.error("Error updating preference", err);
+    }
+  };
 
   const handleToggle = (key) => {
-    setToggles(prev => ({ ...prev, [key]: !prev[key] }));
+    updatePreference(key, !prefs[key]);
+  };
+  
+  const handleDropdown = (key, value) => {
+    updatePreference(key, value);
   };
 
   const tabs = [
@@ -111,21 +137,12 @@ const SettingsPage = () => {
           <h1 className="text-4xl font-semibold mb-1">Settings</h1>
           <p className="text-gray-400 text-sm">Configure your AI assistant preferences</p>
         </div>
-        <div className="flex items-center gap-4">
-          <button className="w-10 h-10 rounded-full glass-panel flex items-center justify-center text-gray-400 hover:text-white transition-colors relative">
-            <Bell size={18} />
-            <div className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full"></div>
-          </button>
-          <button className="w-10 h-10 rounded-full glass-panel flex items-center justify-center text-gray-400 hover:text-white transition-colors">
-            <Settings size={18} />
-          </button>
-        </div>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
         
         {/* Main Content Column */}
-        <div className="flex-[3] flex flex-col gap-6 max-w-4xl">
+        <div className="w-full max-w-4xl flex flex-col gap-6">
           
           {/* Tabs */}
           <div className="glass-panel p-2 rounded-2xl border border-glass-border flex gap-2 overflow-x-auto no-scrollbar">
@@ -162,31 +179,31 @@ const SettingsPage = () => {
                     icon={Palette} 
                     title="Theme" 
                     description="Choose your preferred appearance"
-                    control={<Dropdown value="Dark" options={['Dark', 'Light', 'System']} />}
+                    control={<Dropdown value={prefs.theme} options={['Dark', 'Light', 'System']} onChange={(v) => handleDropdown('theme', v)} />}
                   />
                   <SettingRow 
                     icon={Globe} 
                     title="Language" 
                     description="Select your preferred language"
-                    control={<Dropdown value="English" options={['English', 'Spanish', 'French']} />}
+                    control={<Dropdown value={prefs.language} options={['English', 'Spanish', 'French']} onChange={(v) => handleDropdown('language', v)} />}
                   />
                   <SettingRow 
                     icon={Zap} 
                     title="AI Response Style" 
                     description="Choose how AI responds to you"
-                    control={<Dropdown value="Balanced" options={['Balanced', 'Creative', 'Precise']} />}
+                    control={<Dropdown value={prefs.ai_response_style} options={['Balanced', 'Creative', 'Precise']} onChange={(v) => handleDropdown('ai_response_style', v)} />}
                   />
                   <SettingRow 
                     icon={Lightbulb} 
                     title="Auto-Suggest" 
                     description="Show suggestions in conversations"
-                    control={<Toggle active={toggles.autoSuggest} onChange={() => handleToggle('autoSuggest')} />}
+                    control={<Toggle active={prefs.auto_suggest} onChange={() => handleToggle('auto_suggest')} />}
                   />
                   <SettingRow 
                     icon={Volume2} 
                     title="Sound Effects" 
                     description="Play sounds for actions and alerts"
-                    control={<Toggle active={toggles.soundEffects} onChange={() => handleToggle('soundEffects')} />}
+                    control={<Toggle active={prefs.sound_effects} onChange={() => handleToggle('sound_effects')} />}
                   />
                 </div>
               </div>
@@ -201,19 +218,19 @@ const SettingsPage = () => {
                     icon={Brain} 
                     title="Context Awareness" 
                     description="Allow AI to remember your context"
-                    control={<Toggle active={toggles.contextAwareness} onChange={() => handleToggle('contextAwareness')} />}
+                    control={<Toggle active={prefs.context_awareness} onChange={() => handleToggle('context_awareness')} />}
                   />
                   <SettingRow 
                     icon={Activity} 
                     title="Proactive Assistance" 
                     description="Allow AI to proactively suggest help"
-                    control={<Toggle active={toggles.proactiveAssistance} onChange={() => handleToggle('proactiveAssistance')} />}
+                    control={<Toggle active={prefs.proactive_assistance} onChange={() => handleToggle('proactive_assistance')} />}
                   />
                   <SettingRow 
                     icon={ClipboardList} 
                     title="Daily Summary" 
                     description="Receive daily summary of your day"
-                    control={<Toggle active={toggles.dailySummary} onChange={() => handleToggle('dailySummary')} />}
+                    control={<Toggle active={prefs.daily_summary} onChange={() => handleToggle('daily_summary')} />}
                   />
                 </div>
               </div>
@@ -228,13 +245,13 @@ const SettingsPage = () => {
                     icon={User} 
                     title="Personalization" 
                     description="Allow AI to personalize your experience"
-                    control={<Toggle active={toggles.personalization} onChange={() => handleToggle('personalization')} />}
+                    control={<Toggle active={prefs.personalization} onChange={() => handleToggle('personalization')} />}
                   />
                   <SettingRow 
                     icon={BarChart2} 
                     title="Data Usage" 
                     description="Help improve Bandhu AI with usage data"
-                    control={<Toggle active={toggles.dataUsage} onChange={() => handleToggle('dataUsage')} />}
+                    control={<Toggle active={prefs.data_usage} onChange={() => handleToggle('data_usage')} />}
                   />
                   <SettingRow 
                     icon={Trash2} 
@@ -259,108 +276,6 @@ const SettingsPage = () => {
               <p className="text-sm text-gray-400 max-w-sm">This section is currently under development.</p>
             </div>
           )}
-
-        </div>
-
-        {/* Right Sidebar (Dynamic Data) */}
-        <div className="flex-[1] flex flex-col gap-6 max-w-[320px]">
-          
-          {/* Today's Overview */}
-          <div className="glass-panel p-5 rounded-3xl border border-glass-border">
-            <h3 className="font-medium text-sm mb-4 flex items-center gap-2"><CalendarIcon size={16} className="text-brand-purple"/> Today's Overview</h3>
-            <div className="flex flex-col gap-4">
-              <div className="flex justify-between items-center group cursor-pointer">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-brand-blue/20 text-brand-blue flex items-center justify-center"><CheckSquare size={14}/></div>
-                  <div>
-                    <p className="text-sm font-semibold">{pendingTasks.length}</p>
-                    <p className="text-[10px] text-gray-400">Tasks pending</p>
-                  </div>
-                </div>
-                <ChevronRight size={14} className="text-gray-500 group-hover:text-white transition-colors" />
-              </div>
-              <div className="h-[1px] w-full bg-white/5"></div>
-              <div className="flex justify-between items-center group cursor-pointer">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-green-500/20 text-green-500 flex items-center justify-center"><CalendarIcon size={14}/></div>
-                  <div>
-                    <p className="text-sm font-semibold">{todayEvents.length}</p>
-                    <p className="text-[10px] text-gray-400">Events scheduled</p>
-                  </div>
-                </div>
-                <ChevronRight size={14} className="text-gray-500 group-hover:text-white transition-colors" />
-              </div>
-              <div className="h-[1px] w-full bg-white/5"></div>
-              <div className="flex justify-between items-center group cursor-pointer">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-orange-500/20 text-orange-500 flex items-center justify-center"><Bell size={14}/></div>
-                  <div>
-                    <p className="text-sm font-semibold">0</p>
-                    <p className="text-[10px] text-gray-400">Reminders</p>
-                  </div>
-                </div>
-                <ChevronRight size={14} className="text-gray-500 group-hover:text-white transition-colors" />
-              </div>
-            </div>
-            <button onClick={() => navigate('/calendar')} className="mt-6 w-full text-xs text-brand-purple hover:underline flex items-center justify-center gap-1">
-              View Calendar <ChevronRight size={12} />
-            </button>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="glass-panel p-5 rounded-3xl border border-glass-border">
-            <h3 className="font-medium text-sm mb-4 flex items-center gap-2"><Zap size={16} className="text-brand-purple"/> Quick Actions</h3>
-            <div className="grid grid-cols-4 gap-2">
-              <button onClick={() => navigate('/tasks/new')} className="flex flex-col items-center gap-2 text-gray-400 hover:text-brand-blue group">
-                <div className="w-12 h-12 rounded-full border border-white/10 group-hover:border-brand-blue/50 flex items-center justify-center transition-colors">
-                  <CheckSquare size={16} />
-                </div>
-                <span className="text-[10px] text-center">New Task</span>
-              </button>
-              <button className="flex flex-col items-center gap-2 text-gray-400 hover:text-orange-400 group">
-                <div className="w-12 h-12 rounded-full border border-white/10 group-hover:border-orange-400/50 flex items-center justify-center transition-colors">
-                  <Bell size={16} />
-                </div>
-                <span className="text-[10px] text-center">Set Reminder</span>
-              </button>
-              <button onClick={() => navigate('/notes')} className="flex flex-col items-center gap-2 text-gray-400 hover:text-green-400 group">
-                <div className="w-12 h-12 rounded-full border border-white/10 group-hover:border-green-400/50 flex items-center justify-center transition-colors">
-                  <PenTool size={16} />
-                </div>
-                <span className="text-[10px] text-center">Add Note</span>
-              </button>
-              <button onClick={() => navigate('/')} className="flex flex-col items-center gap-2 text-gray-400 hover:text-brand-purple group">
-                <div className="w-12 h-12 rounded-full border border-white/10 group-hover:border-brand-purple/50 flex items-center justify-center transition-colors">
-                  <MessageSquare size={16} />
-                </div>
-                <span className="text-[10px] text-center">Start Chat</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Learning & Adapting */}
-          <div className="glass-panel p-5 rounded-3xl border border-glass-border flex items-center justify-between bg-gradient-to-br from-panel-dark to-brand-purple/10">
-            <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-lg bg-brand-purple/20 text-brand-purple flex items-center justify-center shrink-0">
-                <Brain size={16} />
-              </div>
-              <div>
-                <h3 className="font-medium text-xs mb-1">Learning & Adapting</h3>
-                <p className="text-[10px] text-gray-400 leading-tight">I'm getting to know you better every day.</p>
-                <button className="text-[10px] text-brand-purple mt-2 hover:underline">View Insights &gt;</button>
-              </div>
-            </div>
-            {/* Dynamic Circular Progress */}
-            <div className="relative w-12 h-12 flex items-center justify-center shrink-0">
-              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                <path className="text-white/5" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" />
-                <path className="text-brand-purple drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]" strokeDasharray={`${productivityScore}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-[10px] font-bold text-white">{productivityScore}%</span>
-              </div>
-            </div>
-          </div>
 
         </div>
 

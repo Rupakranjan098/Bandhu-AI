@@ -239,6 +239,7 @@ def delete_task(task_id: int, db: Session = Depends(get_db), current_user: model
 class EventCreate(BaseModel):
     title: str
     date: str
+    time: Optional[str] = None
     event_type: str
     description: Optional[str] = None
 
@@ -246,6 +247,7 @@ class EventResponse(BaseModel):
     id: int
     title: str
     date: str
+    time: Optional[str] = None
     event_type: str
     description: Optional[str] = None
     
@@ -262,6 +264,7 @@ def create_event(event: EventCreate, db: Session = Depends(get_db), current_user
         title=event.title, 
         user_id=current_user.id,
         date=event.date,
+        time=event.time,
         event_type=event.event_type,
         description=event.description
     )
@@ -277,6 +280,169 @@ def delete_event(event_id: int, db: Session = Depends(get_db), current_user: mod
     if not db_event:
         raise HTTPException(status_code=404, detail="Event not found")
     db.delete(db_event)
+    db.commit()
+    return {"status": "success"}
+
+
+# --- USER PREFERENCES ---
+
+class UserPreferenceBase(BaseModel):
+    theme: str = "Dark"
+    language: str = "English"
+    ai_response_style: str = "Balanced"
+    auto_suggest: bool = True
+    sound_effects: bool = False
+    context_awareness: bool = True
+    proactive_assistance: bool = True
+    daily_summary: bool = True
+    personalization: bool = True
+    data_usage: bool = False
+
+class UserPreferenceUpdate(UserPreferenceBase):
+    pass
+
+class UserPreferenceResponse(UserPreferenceBase):
+    id: int
+    user_id: int
+
+    class Config:
+        orm_mode = True
+
+@app.get("/preferences", response_model=UserPreferenceResponse)
+def get_preferences(current_user: models.User = Depends(auth.get_current_user), db: Session = Depends(get_db)):
+    prefs = db.query(models.UserPreference).filter(models.UserPreference.user_id == current_user.id).first()
+    if not prefs:
+        prefs = models.UserPreference(user_id=current_user.id)
+        db.add(prefs)
+        db.commit()
+        db.refresh(prefs)
+    
+    return UserPreferenceResponse(
+        id=prefs.id,
+        user_id=prefs.user_id,
+        theme=prefs.theme,
+        language=prefs.language,
+        ai_response_style=prefs.ai_response_style,
+        auto_suggest=bool(prefs.auto_suggest),
+        sound_effects=bool(prefs.sound_effects),
+        context_awareness=bool(prefs.context_awareness),
+        proactive_assistance=bool(prefs.proactive_assistance),
+        daily_summary=bool(prefs.daily_summary),
+        personalization=bool(prefs.personalization),
+        data_usage=bool(prefs.data_usage)
+    )
+
+@app.put("/preferences", response_model=UserPreferenceResponse)
+def update_preferences(prefs_update: UserPreferenceUpdate, current_user: models.User = Depends(auth.get_current_user), db: Session = Depends(get_db)):
+    prefs = db.query(models.UserPreference).filter(models.UserPreference.user_id == current_user.id).first()
+    if not prefs:
+        prefs = models.UserPreference(user_id=current_user.id)
+        db.add(prefs)
+    
+    prefs.theme = prefs_update.theme
+    prefs.language = prefs_update.language
+    prefs.ai_response_style = prefs_update.ai_response_style
+    prefs.auto_suggest = 1 if prefs_update.auto_suggest else 0
+    prefs.sound_effects = 1 if prefs_update.sound_effects else 0
+    prefs.context_awareness = 1 if prefs_update.context_awareness else 0
+    prefs.proactive_assistance = 1 if prefs_update.proactive_assistance else 0
+    prefs.daily_summary = 1 if prefs_update.daily_summary else 0
+    prefs.personalization = 1 if prefs_update.personalization else 0
+    prefs.data_usage = 1 if prefs_update.data_usage else 0
+    
+    db.commit()
+    db.refresh(prefs)
+    
+    return UserPreferenceResponse(
+        id=prefs.id,
+        user_id=prefs.user_id,
+        theme=prefs.theme,
+        language=prefs.language,
+        ai_response_style=prefs.ai_response_style,
+        auto_suggest=bool(prefs.auto_suggest),
+        sound_effects=bool(prefs.sound_effects),
+        context_awareness=bool(prefs.context_awareness),
+        proactive_assistance=bool(prefs.proactive_assistance),
+        daily_summary=bool(prefs.daily_summary),
+        personalization=bool(prefs.personalization),
+        data_usage=bool(prefs.data_usage)
+    )
+
+
+# --- NOTES ---
+
+class NoteCreate(BaseModel):
+    title: str
+    content: str = ""
+    tags: str = ""
+    is_favorite: bool = False
+    is_archived: bool = False
+
+class NoteUpdate(BaseModel):
+    title: str = None
+    content: str = None
+    tags: str = None
+    is_favorite: bool = None
+    is_archived: bool = None
+
+class NoteResponse(NoteCreate):
+    id: int
+    user_id: int
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+
+    class Config:
+        orm_mode = True
+
+@app.get("/notes", response_model=List[NoteResponse])
+def get_notes(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    return db.query(models.Note).filter(models.Note.user_id == current_user.id).order_by(models.Note.updated_at.desc()).all()
+
+@app.post("/notes", response_model=NoteResponse)
+def create_note(note: NoteCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    db_note = models.Note(
+        user_id=current_user.id,
+        title=note.title,
+        content=note.content,
+        tags=note.tags,
+        is_favorite=1 if note.is_favorite else 0,
+        is_archived=1 if note.is_archived else 0
+    )
+    db.add(db_note)
+    db.commit()
+    db.refresh(db_note)
+    return db_note
+
+@app.put("/notes/{note_id}", response_model=NoteResponse)
+def update_note(note_id: int, note_update: NoteUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    from fastapi import HTTPException
+    db_note = db.query(models.Note).filter(models.Note.id == note_id, models.Note.user_id == current_user.id).first()
+    if not db_note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    
+    if note_update.title != None:
+        db_note.title = note_update.title
+    if note_update.content != None:
+        db_note.content = note_update.content
+    if note_update.tags != None:
+        db_note.tags = note_update.tags
+    if note_update.is_favorite != None:
+        db_note.is_favorite = 1 if note_update.is_favorite else 0
+    if note_update.is_archived != None:
+        db_note.is_archived = 1 if note_update.is_archived else 0
+        
+    db.commit()
+    db.refresh(db_note)
+    return db_note
+
+@app.delete("/notes/{note_id}")
+def delete_note(note_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    from fastapi import HTTPException
+    db_note = db.query(models.Note).filter(models.Note.id == note_id, models.Note.user_id == current_user.id).first()
+    if not db_note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    
+    db.delete(db_note)
     db.commit()
     return {"status": "success"}
 

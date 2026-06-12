@@ -58,8 +58,42 @@ class Event(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     title = Column(String, index=True)
     date = Column(String) # ISO date string YYYY-MM-DD
+    time = Column(String, nullable=True) # "10:00 AM"
     event_type = Column(String) # "Meeting", "Occasion", "Special Day"
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    user = relationship("User")
+
+class UserPreference(Base):
+    __tablename__ = "user_preferences"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True)
+    theme = Column(String, default="Dark")
+    language = Column(String, default="English")
+    ai_response_style = Column(String, default="Balanced")
+    auto_suggest = Column(Integer, default=1) # 1 for True, 0 for False
+    sound_effects = Column(Integer, default=0)
+    context_awareness = Column(Integer, default=1)
+    proactive_assistance = Column(Integer, default=1)
+    daily_summary = Column(Integer, default=1)
+    personalization = Column(Integer, default=1)
+    data_usage = Column(Integer, default=0)
+
+    user = relationship("User")
+
+class Note(Base):
+    __tablename__ = "notes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    title = Column(String, index=True)
+    content = Column(Text, nullable=True)
+    tags = Column(String, nullable=True) # Comma-separated tags
+    is_favorite = Column(Integer, default=0)
+    is_archived = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
     user = relationship("User")
