@@ -26,8 +26,6 @@ db.close()
 
 app = FastAPI(title="Bandhu AI API")
 
-app.include_router(auth.router)
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -35,6 +33,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+os.makedirs("static/avatars", exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+app.include_router(auth.router)
 
 class MessageRequest(BaseModel):
     conversation_id: Optional[int] = None
@@ -297,6 +300,11 @@ class UserPreferenceBase(BaseModel):
     daily_summary: bool = True
     personalization: bool = True
     data_usage: bool = False
+    two_factor_auth: bool = False
+    login_alerts: bool = True
+    share_analytics: bool = False
+    allow_ai_training: bool = False
+    timezone: str = "(GMT+5:30) Asia/Kolkata"
 
 class UserPreferenceUpdate(UserPreferenceBase):
     pass
@@ -329,7 +337,12 @@ def get_preferences(current_user: models.User = Depends(auth.get_current_user), 
         proactive_assistance=bool(prefs.proactive_assistance),
         daily_summary=bool(prefs.daily_summary),
         personalization=bool(prefs.personalization),
-        data_usage=bool(prefs.data_usage)
+        data_usage=bool(prefs.data_usage),
+        two_factor_auth=bool(prefs.two_factor_auth),
+        login_alerts=bool(prefs.login_alerts),
+        share_analytics=bool(prefs.share_analytics),
+        allow_ai_training=bool(prefs.allow_ai_training),
+        timezone=prefs.timezone
     )
 
 @app.put("/preferences", response_model=UserPreferenceResponse)
@@ -349,6 +362,11 @@ def update_preferences(prefs_update: UserPreferenceUpdate, current_user: models.
     prefs.daily_summary = 1 if prefs_update.daily_summary else 0
     prefs.personalization = 1 if prefs_update.personalization else 0
     prefs.data_usage = 1 if prefs_update.data_usage else 0
+    prefs.two_factor_auth = 1 if prefs_update.two_factor_auth else 0
+    prefs.login_alerts = 1 if prefs_update.login_alerts else 0
+    prefs.share_analytics = 1 if prefs_update.share_analytics else 0
+    prefs.allow_ai_training = 1 if prefs_update.allow_ai_training else 0
+    prefs.timezone = prefs_update.timezone
     
     db.commit()
     db.refresh(prefs)
@@ -365,7 +383,12 @@ def update_preferences(prefs_update: UserPreferenceUpdate, current_user: models.
         proactive_assistance=bool(prefs.proactive_assistance),
         daily_summary=bool(prefs.daily_summary),
         personalization=bool(prefs.personalization),
-        data_usage=bool(prefs.data_usage)
+        data_usage=bool(prefs.data_usage),
+        two_factor_auth=bool(prefs.two_factor_auth),
+        login_alerts=bool(prefs.login_alerts),
+        share_analytics=bool(prefs.share_analytics),
+        allow_ai_training=bool(prefs.allow_ai_training),
+        timezone=prefs.timezone
     )
 
 

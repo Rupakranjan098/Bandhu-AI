@@ -7,6 +7,8 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
+    full_name = Column(String, default="test")
+    avatar_url = Column(String, nullable=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
@@ -78,8 +80,12 @@ class UserPreference(Base):
     context_awareness = Column(Integer, default=1)
     proactive_assistance = Column(Integer, default=1)
     daily_summary = Column(Integer, default=1)
-    personalization = Column(Integer, default=1)
     data_usage = Column(Integer, default=0)
+    two_factor_auth = Column(Integer, default=0)
+    login_alerts = Column(Integer, default=1)
+    share_analytics = Column(Integer, default=0)
+    allow_ai_training = Column(Integer, default=0)
+    timezone = Column(String, default="(GMT+5:30) Asia/Kolkata")
 
     user = relationship("User")
 
