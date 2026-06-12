@@ -318,11 +318,28 @@ const SettingsPage = () => {
                   </div>
                   <div>
                     <div className="text-sm font-medium text-white mb-0.5">Google</div>
-                    <div className="text-xs text-green-500 font-medium">Connected</div>
+                    <div className={`text-xs font-medium ${isGoogleConnected ? 'text-green-500' : 'text-gray-500'}`}>
+                      {isGoogleConnected ? 'Connected' : 'Not Connected'}
+                    </div>
                   </div>
                 </div>
-                <button className="px-4 py-2 border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors text-xs font-medium rounded-lg">
-                  Disconnect
+                <button 
+                  onClick={() => {
+                    if (isGoogleConnected) {
+                      if(window.confirm('Are you sure you want to disconnect your Google account?')) {
+                        setIsGoogleConnected(false);
+                      }
+                    } else {
+                      setIsGoogleConnected(true);
+                    }
+                  }}
+                  className={`px-4 py-2 border transition-colors text-xs font-medium rounded-lg ${
+                    isGoogleConnected 
+                    ? 'border-red-500/30 text-red-400 hover:bg-red-500/10' 
+                    : 'border-brand-purple/50 text-brand-purple hover:bg-brand-purple/10'
+                  }`}
+                >
+                  {isGoogleConnected ? 'Disconnect' : 'Connect'}
                 </button>
               </div>
             </div>
