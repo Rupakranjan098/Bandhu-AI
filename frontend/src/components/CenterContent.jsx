@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Sphere, MeshDistortMaterial } from '@react-three/drei';
-import { Mic, Send, Zap } from 'lucide-react';
+import { Mic, Send, Zap, Volume2, VolumeX } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import ChatBubble from './ChatBubble';
@@ -56,6 +56,8 @@ const CenterContent = () => {
   const [voiceError, setVoiceError] = useState(null);
   const recognitionRef = useRef(null);
   const synth = window.speechSynthesis;
+  const [isMuted, setIsMuted] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
   const sendMessageRef = useRef();
 
   const quickAnswers = [
@@ -126,7 +128,7 @@ const CenterContent = () => {
   };
 
   const speakText = (text) => {
-    if (!synth) return;
+    if (!synth || isMuted) return;
     synth.cancel(); // Stop current speech
     
     // Remove markdown for cleaner speech
@@ -187,6 +189,14 @@ const CenterContent = () => {
 
   const sendMessage = async (text) => {
     if (!text.trim() && !isTyping) return;
+
+    // Safari requires user interaction to initialize speech synthesis
+    if (!hasInteracted && synth) {
+      const dummy = new SpeechSynthesisUtterance('');
+      dummy.volume = 0;
+      synth.speak(dummy);
+      setHasInteracted(true);
+    }
 
     const userMsg = { role: 'user', content: text };
     setMessages(prev => [...prev, userMsg]);
@@ -367,6 +377,15 @@ const CenterContent = () => {
               <Send size={20} />
             </button>
           </div>
+          
+          {/* TTS Toggle */}
+          <button 
+            onClick={() => setIsMuted(!isMuted)}
+            className="absolute -right-12 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-white transition-colors"
+            title={isMuted ? "Unmute AI Voice" : "Mute AI Voice"}
+          >
+            {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} className="text-brand-purple" />}
+          </button>
         </div>
       </div>
 

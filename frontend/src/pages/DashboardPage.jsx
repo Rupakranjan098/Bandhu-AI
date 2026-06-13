@@ -11,20 +11,23 @@ const DashboardPage = () => {
   const [tasks, setTasks] = useState([]);
   const [events, setEvents] = useState([]);
   const [conversations, setConversations] = useState([]);
+  const [chartData, setChartData] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem('token');
         const config = { headers: { Authorization: `Bearer ${token}` } };
-        const [tasksRes, eventsRes, convsRes] = await Promise.all([
+        const [tasksRes, eventsRes, convsRes, chartRes] = await Promise.all([
           axios.get('http://localhost:8001/tasks', config),
           axios.get('http://localhost:8001/events', config),
-          axios.get('http://localhost:8001/conversations', config)
+          axios.get('http://localhost:8001/conversations', config),
+          axios.get('http://localhost:8001/analytics/weekly', config)
         ]);
         setTasks(tasksRes.data);
         setEvents(eventsRes.data);
         setConversations(convsRes.data);
+        setChartData(chartRes.data.reverse()); // Reverse to show older days first
       } catch (err) {
         console.error("Error fetching dashboard data", err);
       }
@@ -37,17 +40,6 @@ const DashboardPage = () => {
   const todayEvents = events.filter(e => isToday(new Date(e.date)));
   
   const productivityScore = tasks.length === 0 ? 100 : Math.round((completedTasks.length / tasks.length) * 100);
-
-  // Mock data for the chart as we don't have historical data yet
-  const chartData = [
-    { name: 'Mon', Conversations: 2, Tasks: 1, Events: 0 },
-    { name: 'Tue', Conversations: 5, Tasks: 3, Events: 1 },
-    { name: 'Wed', Conversations: 3, Tasks: 2, Events: 0 },
-    { name: 'Thu', Conversations: 7, Tasks: 5, Events: 2 },
-    { name: 'Fri', Conversations: 4, Tasks: 1, Events: 1 },
-    { name: 'Sat', Conversations: 0, Tasks: 0, Events: 0 },
-    { name: 'Sun', Conversations: conversations.length, Tasks: completedTasks.length, Events: todayEvents.length }
-  ];
 
   return (
     <div className="flex-1 h-full flex flex-col py-8 px-8 overflow-y-auto no-scrollbar relative text-white">

@@ -6,6 +6,7 @@ import asyncio
 import json
 import os
 from dotenv import load_dotenv
+from fastapi.staticfiles import StaticFiles
 
 from database import engine, Base, get_db, SessionLocal
 import models
@@ -80,10 +81,10 @@ async def real_llm_stream(prompt: str):
         yield f"\n\n[Free API Error]: {str(e)}"
 
 @app.post("/chat")
-async def chat(req: Request, message_req: MessageRequest, db: Session = Depends(get_db)):
+async def chat(req: Request, message_req: MessageRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     # 1. Get or create conversation
     if not message_req.conversation_id:
-        conv = models.Conversation(title=message_req.content[:30] + "...")
+        conv = models.Conversation(title=message_req.content[:30] + "...", user_id=current_user.id)
         db.add(conv)
         db.commit()
         db.refresh(conv)
@@ -104,8 +105,19 @@ async def chat(req: Request, message_req: MessageRequest, db: Session = Depends(
         }
         
         full_response = ""
+        
+        # Fetch User Context
+        tasks = db.query(models.Task).filter(models.Task.user_id == current_user.id, models.Task.is_completed == 0).all()
+        task_str = ", ".join([t.title for t in tasks]) or "None"
+        events = db.query(models.Event).filter(models.Event.user_id == current_user.id).all()
+        event_str = ", ".join([f"{e.title} on {e.date}" for e in events]) or "None"
+        notes = db.query(models.Note).filter(models.Note.user_id == current_user.id).limit(3).all()
+        note_str = ", ".join([n.title for n in notes]) or "None"
+        
+        context_prompt = f"Context: Pending Tasks: {task_str}. Upcoming Events: {event_str}. Recent Notes: {note_str}.\n\nUser prompt: {message_req.content}"
+        
         # Real streaming via Free LLM API
-        async for chunk in real_llm_stream(message_req.content):
+        async for chunk in real_llm_stream(context_prompt):
             full_response += chunk
             yield {
                 "event": "message",
@@ -286,6 +298,36 @@ def delete_event(event_id: int, db: Session = Depends(get_db), current_user: mod
     db.commit()
     return {"status": "success"}
 
+# --- Analytics API ---
+
+@app.get("/analytics/weekly")
+def get_weekly_analytics(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    import datetime
+    today = datetime.datetime.utcnow().date()
+    
+    dates = [(today - datetime.timedelta(days=i)) for i in range(6, -1, -1)]
+    days_of_week = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    
+    all_tasks = db.query(models.Task).filter(models.Task.user_id == current_user.id).all()
+    all_events = db.query(models.Event).filter(models.Event.user_id == current_user.id).all()
+    all_convs = db.query(models.Conversation).filter(models.Conversation.user_id == current_user.id).all()
+    
+    results = []
+    for d in dates:
+        day_name = days_of_week[d.weekday()]
+        
+        tasks_count = sum(1 for t in all_tasks if t.created_at and t.created_at.date() == d)
+        events_count = sum(1 for e in all_events if e.date == d.strftime("%Y-%m-%d"))
+        conv_count = sum(1 for c in all_convs if c.created_at and c.created_at.date() == d)
+        
+        results.append({
+            "name": day_name,
+            "Conversations": conv_count,
+            "Tasks": tasks_count,
+            "Events": events_count
+        })
+        
+    return results
 
 # --- USER PREFERENCES ---
 
